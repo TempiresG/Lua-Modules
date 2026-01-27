@@ -5,14 +5,19 @@
 
 // List of JavaScript modules to include
 const jsModules = [
+	'Analytics',
 	'BattleRoyale',
 	'Bracket',
+	'Carousel',
 	'Collapse',
 	'Commons_mainpage',
 	'Commons_tools',
 	'CopyToClipboard',
 	'Countdown',
 	'Crosstable',
+	'Dialog',
+	'Dropdown',
+	'ExportImage',
 	'FilterButtons',
 	'Liquipedia_links',
 	'Mainpage',

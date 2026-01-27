@@ -20,10 +20,12 @@ local Cell = Widgets.Cell
 
 ---@class ValorantInfoboxTeam: InfoboxTeam
 local CustomTeam = Class.new(Team)
+---@class ValorantInfoboxTeamWidgetInjector: WidgetInjector
+---@field caller ValorantInfoboxTeam
 local CustomInjector = Class.new(Injector)
 
 ---@param frame Frame
----@return Html
+---@return Widget
 function CustomTeam.run(frame)
 	local team = CustomTeam(frame)
 	team:setWidgetInjector(CustomInjector(team))

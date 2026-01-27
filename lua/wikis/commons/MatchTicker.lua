@@ -64,11 +64,30 @@ local DEFAULT_ORDER = 'date asc, liquipediatier asc, tournament asc'
 local DEFAULT_RECENT_ORDER = 'date desc, liquipediatier asc, tournament asc'
 local NOW = os.date('%Y-%m-%d %H:%M', os.time(os.date('!*t') --[[@as osdateparam]]))
 
+---@class MatchTickerMatchInterface
+---@operator call({config: MatchTickerConfig, match: table}): MatchTickerMatchInterface
+---@field config MatchTickerConfig
+---@field match table
+---@field create fun(self: MatchTickerMatchInterface): Widget|Html?
+
+---@class MatchTickerContainerInterface
+---@operator call({config: MatchTickerConfig, matches: table[]}): MatchTickerContainerInterface
+---@field config MatchTickerConfig
+---@field matches table[]
+---@field create fun(self: MatchTickerContainerInterface): Widget|Html?
+
 --- Extract externally if it grows
 ---@param matchTickerConfig MatchTickerConfig
----@return unknown # Todo: Add interface for MatchTickerDisplay
+---@return {Container?: MatchTickerContainerInterface, Match: MatchTickerMatchInterface}
 local MatchTickerDisplayFactory = function (matchTickerConfig)
-	if matchTickerConfig.newStyle then
+	assert(not (matchTickerConfig.entityStyle and matchTickerConfig.newStyle),
+		"Invalid MatchTicker configuration: 'entityStyle' and 'newStyle' are mutually exclusive. " ..
+		"Choose one display mode: use 'entityStyle' for carousel-based entity display, " ..
+		"'newStyle' for new-style match cards, or neither for legacy display.")
+
+	if matchTickerConfig.entityStyle then
+		return Lua.import('Module:MatchTicker/DisplayComponents/Entity')
+	elseif matchTickerConfig.newStyle then
 		return Lua.import('Module:MatchTicker/DisplayComponents/New')
 	else
 		return Lua.import('Module:MatchTicker/DisplayComponents')
@@ -99,7 +118,8 @@ end
 ---@field regions string[]?
 ---@field games string[]?
 ---@field newStyle boolean?
----@field featuredTournamentsOnly boolean?
+---@field entityStyle boolean?
+---@field featuredOnly boolean?
 ---@field displayGameIcons boolean?
 
 ---@class MatchTickerGameData
@@ -155,7 +175,7 @@ function MatchTicker:init(args)
 					return Game.toIdentifier{game=game}
 				end) or nil,
 		newStyle = Logic.readBool(args.newStyle),
-		featuredTournamentsOnly = Logic.readBool(args.featuredTournamentsOnly),
+		featuredOnly = Logic.readBool(args.featuredOnly),
 		displayGameIcons = Logic.readBool(args.displayGameIcons)
 	}
 
@@ -366,7 +386,7 @@ function MatchTicker:parseMatch(match)
 	match.opponents = Array.map(match.match2opponents, function(opponent, opponentIndex)
 		return MatchGroupUtil.opponentFromRecord(match, opponent, opponentIndex)
 	end)
-	if self.config.regions or self.config.featuredTournamentsOnly then
+	if self.config.regions or self.config.featuredOnly then
 		match.tournamentData = MatchTicker.fetchTournament(match.parent)
 	end
 	return match
@@ -377,6 +397,9 @@ local previousMatchWasTbd
 ---@param match table
 ---@return boolean
 function MatchTicker:keepMatch(match)
+	if match.extradata and match.extradata.hidden then
+		return false
+	end
 	-- Remove matches with wrong region
 	if self.config.regions then
 		if not match.tournamentData then
@@ -387,11 +410,10 @@ function MatchTicker:keepMatch(match)
 		end
 	end
 
-	if self.config.featuredTournamentsOnly then
-		if not match.tournamentData then
-			return false
-		end
-		if not match.tournamentData.featured then
+	if self.config.featuredOnly then
+		local matchIsInFeaturedTournament = match.tournamentData and match.tournamentData.featured
+		local matchIsFeatured = match.extradata and match.extradata.featured
+		if not matchIsInFeaturedTournament and not matchIsFeatured then
 			return false
 		end
 	end
@@ -564,8 +586,19 @@ function MatchTicker:create(header)
 		return wrapper:css('text-align', 'center'):wikitext('No Results found.')
 	end
 
-	for _, match in ipairs(self.matches or {}) do
-		wrapper:node(MatchTicker.DisplayComponents.Match{config = self.config, match = match}:create())
+	if MatchTicker.DisplayComponents.Container then
+		local container = MatchTicker.DisplayComponents.Container{
+			config = self.config,
+			matches = self.matches
+		}:create()
+
+		if container then
+			wrapper:node(container)
+		end
+	else
+		Array.forEach(self.matches or {}, function(match)
+			wrapper:node(MatchTicker.DisplayComponents.Match{config = self.config, match = match}:create())
+		end)
 	end
 
 	return wrapper

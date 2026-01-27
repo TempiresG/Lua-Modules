@@ -34,7 +34,7 @@ local _tournament_name
 
 -- Template entry point
 ---@param frame Frame
----@return Html
+---@return Widget
 function CustomPrizePool.run(frame)
 	local args = Arguments.getArgs(frame)
 
@@ -102,6 +102,7 @@ function CustomLpdbInjector:adjust(lpdbData, placement, opponent)
 
 	lpdbData.extradata = Table.mergeInto(lpdbData.extradata, {
 		seriesnumber = CustomPrizePool._seriesNumber(),
+		mod = Variables.varDefault('tournament_mod'),
 	})
 
 	lpdbData.tournament = _tournament_name
