@@ -21,15 +21,16 @@ local Tournament = Lua.import('Module:Tournament')
 
 local TeamParticipantsWikiParser = {}
 
----@alias TeamParticipant {opponent: standardOpponent, notes: {text: string, highlighted: boolean}[], aliases: string[],
+---@alias TeamParticipant {opponent: standardOpponent, image: string?, imagedark: string?,
+---notes: {text: string, highlighted: boolean}[], aliases: string[],
 ---qualification: QualificationStructure?, shouldImportFromDb: boolean, date: integer,
 ---potentialQualifiers: standardOpponent[]?, warnings: string[]?}
 
 ---@alias QualificationMethod 'invite'|'qual'
----@alias QualificationType 'tournament'|'external'|'other'
+---@alias QualificationType 'tournament'|'internal'|'external'|'other'
 
 ---@alias QualificationStructure {method: QualificationMethod, type: QualificationType,
----tournament?: StandardTournament, url?: string, text?: string, placement?: string}
+---page?: string, tournament?: StandardTournament, url?: string, text?: string, placement?: string}
 
 ---@param args table
 ---@return {participants: TeamParticipant[], expectedPlayerCount: integer?}
@@ -94,7 +95,7 @@ local function parseQualifier(input)
 		end
 		local tournament = Tournament.getTournament(tournamentPage)
 		if not tournament then
-			qualificationStructure.type = 'other'
+			qualificationStructure.type = 'internal'
 			qualificationStructure.page = input.page
 		else
 			qualificationStructure.tournament = tournament
@@ -103,7 +104,7 @@ local function parseQualifier(input)
 		qualificationStructure.url = input.url
 	end
 
-	if qualificationType == 'external' or (qualificationType == 'other' and qualificationStructure.page) then
+	if qualificationType == 'external' or qualificationType == 'internal' then
 		assert(qualificationStructure.text, 'External or non-tournament qualifier must have text')
 	end
 
@@ -156,7 +157,16 @@ function TeamParticipantsWikiParser.parseParticipant(input, defaultDate)
 			type = Opponent.team,
 		}))
 		opponent.players = TeamParticipantsWikiParser.parsePlayers(input)
-		opponent = Opponent.resolve(opponent, DateExt.toYmdInUtc(date), {syncPlayer = true})
+		local resolvedOptions = {
+			syncPlayer = true,
+			-- syncPlayerTeam basically doubles the lpdb callbacks hence disable it by default for TeamParticipant
+			syncPlayerTeam = Logic.nilOr(
+				Logic.readBoolOrNil(input.syncPlayerTeam),
+				(Info.config.participants or {}).syncPlayerTeam,
+				false
+			)
+		}
+		opponent = Opponent.resolve(opponent, DateExt.toYmdInUtc(date), resolvedOptions)
 	end
 
 	local qualification, qualificationWarnings = parseQualifier(input.qualification)
@@ -167,6 +177,8 @@ function TeamParticipantsWikiParser.parseParticipant(input, defaultDate)
 
 	return {
 		opponent = opponent,
+		image = input.image,
+		imagedark = input.imagedark,
 		qualification = qualification,
 		aliases = Array.flatMap(aliases, function(alias)
 			return TeamTemplate.queryHistoricalNames(alias)
@@ -202,18 +214,30 @@ function TeamParticipantsWikiParser.parsePlayer(playerInput)
 	local playedInput = Logic.readBoolOrNil(playerInput.played)
 	local resultsInput = Logic.readBoolOrNil(playerInput.results)
 	local roles = RoleUtil.readRoleArgs(playerInput.role)
-	local playerType = playerInput.type or 'player'
+	local inputType = playerInput.type or 'player'
+	local hasStaffRoles = Array.any(roles, function(role) return role.type == RoleUtil.ROLE_TYPE.STAFF end)
 
-	local hasNoStaffRoles = Array.all(roles, function(role) return role.type ~= RoleUtil.ROLE_TYPE.STAFF end)
+	local status = playerInput.status
+	if not status then
+		if inputType == 'former' then
+			status = 'former'
+		elseif inputType == 'sub' then
+			status = 'sub'
+		end
+	end
 
-	if playerType ~= 'staff' and not hasNoStaffRoles then
+	local playerType
+	if inputType == 'staff' or hasStaffRoles then
 		playerType = 'staff'
+	else
+		playerType = 'player'
 	end
 
 	player.extradata = {
 		roles = roles,
 		trophies = tonumber(playerInput.trophies),
 		type = playerType,
+		status = status,
 		played = Logic.nilOr(playedInput, true),
 		results = Logic.nilOr(resultsInput, playedInput, true),
 	}
@@ -230,16 +254,16 @@ function TeamParticipantsWikiParser.fillIncompleteRoster(opponent, minimumPlayer
 		return
 	end
 
-	local actualPlayers = Array.filter(opponent.players, function(player)
-		return player.extradata.type == 'player'
+	local activePlayers = Array.filter(opponent.players, function(player)
+		return player.extradata.type == 'player' and not player.extradata.status
 	end)
 
-	local actualPlayerCount = #actualPlayers
-	if actualPlayerCount >= expectedPlayerCount then
+	local activePlayerCount = #activePlayers
+	if activePlayerCount >= expectedPlayerCount then
 		return
 	end
 
-	local tbdPlayers = TeamParticipantsWikiParser.createTBDPlayers(expectedPlayerCount - actualPlayerCount)
+	local tbdPlayers = TeamParticipantsWikiParser.createTBDPlayers(expectedPlayerCount - activePlayerCount)
 	Array.extendWith(opponent.players, tbdPlayers)
 end
 

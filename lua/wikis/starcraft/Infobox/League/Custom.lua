@@ -9,7 +9,9 @@ local Lua = require('Module:Lua')
 
 local Array = Lua.import('Module:Array')
 local Class = Lua.import('Module:Class')
+local Json = Lua.import('Module:Json')
 local Logic = Lua.import('Module:Logic')
+local Opponent = Lua.import('Module:Opponent/Custom')
 local Page = Lua.import('Module:Page')
 local String = Lua.import('Module:StringUtils')
 local Table = Lua.import('Module:Table')
@@ -102,13 +104,15 @@ function CustomLeague:_isFinished(args)
 		return false
 	end
 
-	return mw.ext.LiquipediaDB.lpdb('placement', {
-		conditions = '[[pagename::' .. string.gsub(mw.title.getCurrentTitle().text, ' ', '_') .. ']] '
-			.. 'AND [[opponentname::!TBD]] AND [[placement::1]]',
-		query = 'date',
+	local winner = mw.ext.LiquipediaDB.lpdb('placement', {
+		conditions = '[[pagename::' .. string.gsub(self.pagename, ' ', '_') .. ']] '
+			.. 'AND [[opponentname::!TBD]] AND [[opponentname::!]] AND [[placement::1]]',
+		query = 'opponenttype, opponentplayers, opponenttemplate, opponentname',
 		order = 'date asc',
 		limit = 1
-	})[1] ~= nil
+	})[1]
+
+	return winner and not Opponent.isTbd(Opponent.fromLpdbStruct(winner))
 end
 
 -- Automatically fill in next/previous for touranaments that are part of a series
@@ -241,7 +245,7 @@ end
 ---@return table
 function CustomLeague:addToLpdb(lpdbData, args)
 	lpdbData.tickername = lpdbData.tickername or lpdbData.name
-	lpdbData.maps = self:_concatArgs('map')
+	lpdbData.maps = Json.stringify(self.data.maps)
 	-- do not resolve redirect on the series input
 	-- BW wiki has several series that are displayed on the same page
 	-- hence they need to not RR them
@@ -257,15 +261,6 @@ end
 ---@return string[]
 function CustomLeague:getWikiCategories(args)
 	return {Logic.readBool(args.female) and 'Female Tournaments' or nil}
-end
-
----@param base string
----@return string
-function CustomLeague:_concatArgs(base)
-	return table.concat(
-		Array.map(self:getAllArgsForBase(self.args, base), mw.ext.TeamLiquidIntegration.resolve_redirect),
-		';'
-	)
 end
 
 return CustomLeague

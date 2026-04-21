@@ -8,6 +8,7 @@
 local Lua = require('Module:Lua')
 
 local DateExt = Lua.import('Module:Date/Ext')
+local MainPageLayoutUtil = Lua.import('Module:MainPageLayout/Util')
 
 local FilterButtonsWidget = Lua.import('Module:Widget/FilterButtons')
 local HtmlWidgets = Lua.import('Module:Widget/Html/All')
@@ -16,7 +17,7 @@ local IconFa = Lua.import('Module:Widget/Image/Icon/Fontawesome')
 local ThisDayWidgets = Lua.import('Module:Widget/MainPage/ThisDay')
 local TransfersList = Lua.import('Module:Widget/MainPage/TransfersList')
 local WantToHelp = Lua.import('Module:Widget/MainPage/WantToHelp')
-local TournamentsTicker = Lua.import('Module:Widget/Tournaments/Ticker')
+local TournamentsTicker = Lua.import('Module:Widget/Tournaments/Ticker/List')
 
 local ONGOING_SERIES = IconFa{
 	iconName = 'ongoing_series',
@@ -55,13 +56,13 @@ local CONTENT = {
 			rumours = true,
 			transferPage = 'Driver Transfers/' .. DateExt.getYearOf()
 		},
-		boxid = 1501,
+		boxid = MainPageLayoutUtil.BoxId.TRANSFERS,
 	},
 	specialEvents = {
 		heading = HtmlWidgets.Fragment{children = {ONGOING_SERIES, '&nbsp;Active and Upcoming Series'}},
 		body = '{{Liquipedia:Active Upcoming Series}}',
 		padding = true,
-		boxid = 1502
+		boxid = MainPageLayoutUtil.BoxId.SPECIAL_EVENTS
 	},
 	filterButtons = {
 		noPanel = true,
@@ -74,28 +75,29 @@ local CONTENT = {
 		heading = HtmlWidgets.Fragment{children = {TROPHY, '&nbsp;F1 & Feeder Series Seasons'}},
 		body = TournamentsTicker{
 			upcomingDays = 90,
-			completedDays = 90
+			completedDays = 90,
+			variant = 'collapsible',
 		},
-		padding = true,
-		boxid = 1503
+		padding = false,
+		boxid = MainPageLayoutUtil.BoxId.TOURNAMENTS_TICKER
 	},
 	seasonOverview = {
 		heading =HtmlWidgets.Fragment{children = {TROPHY, '&nbsp;Current Season Overview'}},
 		body = '{{Liquipedia:Season Overview}}',
 		padding = true,
-		boxid = 1504
+		boxid = 1517
 	},
 	seasonCalendar = {
 		heading =HtmlWidgets.Fragment{children = {CALENDAR, '&nbsp;Season Calendar'}},
 		body = '{{Liquipedia:Season Calendar}}',
 		padding = true,
-		boxid = 1505
+		boxid = MainPageLayoutUtil.BoxId.MOBILE_APP
 	},
 	wantToHelp = {
 		heading = 'Want To Help?',
 		body = WantToHelp{},
 		padding = true,
-		boxid = 1508,
+		boxid = MainPageLayoutUtil.BoxId.WANT_TO_HELP,
 	},
 	thisDay = {
 		heading = ThisDayWidgets.Title(),
@@ -103,18 +105,18 @@ local CONTENT = {
 			birthdayListPage = 'Birthday list'
 		},
 		padding = true,
-		boxid = 1509,
+		boxid = MainPageLayoutUtil.BoxId.THIS_DAY,
 	},
 	upcomingRace = {
 		heading =HtmlWidgets.Fragment{children = {TROPHY, '&nbsp;Upcoming Race'}},
 		body = '{{Liquipedia:Upcoming Grand Prix}}',
 		padding = true,
-		boxid = 1509
+		boxid = 1518
 	},
 	previousRace = {
 		heading =HtmlWidgets.Fragment{children = {FINISHED_RACE, '&nbsp;Previous Race Weekend'}},
 		body = '{{Liquipedia:Previous Race Weekend}}',
-		boxid = 1511
+		boxid = 1515
 	},
 	allF1Seasons = {
 		heading =HtmlWidgets.Fragment{children = {HISTORY, '&nbsp;Formula 1 Seasons'}},
@@ -125,7 +127,7 @@ local CONTENT = {
 		heading = 'The Sport',
 		body = '{{Liquipedia:Sport Panel}}',
 		padding = true,
-		boxid = 1513,
+		boxid = MainPageLayoutUtil.BoxId.USEFUL_ARTICLES,
 	},
 }
 
@@ -188,7 +190,7 @@ return {
 	layouts = {
 		main = {
 			{ -- Left
-				size = 6,
+				sizes = {xxl = 5, xxxl = 6},
 				children = {
 					{
 						mobileOrder = 1,
@@ -209,7 +211,7 @@ return {
 				}
 			},
 			{ -- Right
-				size = 6,
+				sizes = {xxl = 7, xxxl = 6},
 				children = {
 					{
 						mobileOrder = 2,

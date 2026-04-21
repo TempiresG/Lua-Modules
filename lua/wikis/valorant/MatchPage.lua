@@ -19,6 +19,7 @@ local BaseMatchPage = Lua.import('Module:MatchPage/Base')
 local MatchGroupUtil = Lua.import('Module:MatchGroup/Util/Custom')
 
 local HtmlWidgets = Lua.import('Module:Widget/Html/All')
+local Carousel = Lua.import('Module:Widget/Basic/Carousel')
 local Div = HtmlWidgets.Div
 local GeneralCollapsible = Lua.import('Module:Widget/GeneralCollapsible/Default')
 local IconFa = Lua.import('Module:Widget/Image/Icon/Fontawesome')
@@ -57,6 +58,10 @@ local WIN_TYPES = {
 	['time'] = {
 		icon = 'outoftime',
 		description = 'Timer expired',
+	},
+	surrendered = {
+		icon = 'surrendered',
+		description = 'Surrendered'
 	}
 }
 
@@ -319,6 +324,7 @@ function MatchPage:_renderTeamStats(game)
 						},
 						Div{
 							classes = {'match-bm-team-stats-list-cell'},
+							css = {flex = 1},
 							children = self:getTournamentIcon()
 						},
 						Div{
@@ -345,6 +351,12 @@ function MatchPage:_renderTeamStats(game)
 							name = 'Thrifties',
 							team1Value = game.teams[1].thrifties,
 							team2Value = game.teams[2].thrifties
+						},
+						{
+							icon = IconFa{iconName = 'flawless_valorant'},
+							name = 'Flawless',
+							team1Value = game.teams[1].flawless,
+							team2Value = game.teams[2].flawless,
 						},
 						{
 							icon = IconImage{
@@ -377,6 +389,9 @@ end
 ---@param puuid string
 ---@return {player: string, displayName: string}?
 function MatchPage._findPlayerByPuuid(game, puuid)
+	if Logic.isEmpty(puuid) then
+		return
+	end
 	for _, opponent in ipairs(game.opponents) do
 		for _, player in ipairs(opponent.players) do
 			if player.puuid == puuid then
@@ -409,6 +424,8 @@ MatchPage._displayCeremony = FnUtil.memoize(function (ceremony)
 				imageDark = 'VALORANT Creds darkmode.png',
 				size = '16px',
 			}
+		elseif ceremony == 'Flawless' then
+			return IconFa{iconName = 'flawless_valorant'}
 		end
 	end
 
@@ -434,14 +451,10 @@ function MatchPage:_renderRoundDetails(game)
 		title = 'Round Details',
 		classes = {'match-bm-match-collapsible'},
 		shouldCollapse = true,
-		collapseAreaClasses = {
-			'match-bm-match-collapsible-content',
-			-- TODO: Replace container class with Carousel widget after #6951
-			'match-bm-match-round-detail-container',
-		},
-		children = Array.map(game.extradata.rounds or {}, function (round, roundIndex)
-			return self:_renderRoundDetail(findPlayer, round, roundIndex)
-		end)
+		collapseAreaClasses = {'match-bm-match-collapsible-content'},
+		children = Carousel{children = Array.map(game.extradata.rounds or {}, function (round, roundIndex)
+				return self:_renderRoundDetail(findPlayer, round, roundIndex)
+		end)}
 	}
 end
 
@@ -452,6 +465,7 @@ end
 ---@return Widget
 function MatchPage:_renderRoundDetail(findPlayer, round, roundIndex)
 	local firstKillPlayer = findPlayer(round.firstKill.killer) or {}
+	local ceremonyPlayer = findPlayer(round.ceremonyFor)
 	local roundWinType = WIN_TYPES[round.winBy] or {}
 
 	return Div{
@@ -474,7 +488,7 @@ function MatchPage:_renderRoundDetail(findPlayer, round, roundIndex)
 				children = {
 					Div{
 						classes = {'match-bm-match-round-detail-body-result'},
-						children = {
+						children = WidgetUtil.collect(
 							MatchPage._renderRoundOutcomeIcon(round.winningSide, round.winBy),
 							Span{
 								classes = {'match-bm-match-round-detail-body-result-desc'},
@@ -487,7 +501,7 @@ function MatchPage:_renderRoundDetail(findPlayer, round, roundIndex)
 									HtmlWidgets.B{children = 'Winner'},
 								}
 							}
-						}
+						)
 					},
 					HtmlWidgets.Hr{},
 					Span{children = {
@@ -496,7 +510,13 @@ function MatchPage:_renderRoundDetail(findPlayer, round, roundIndex)
 						' ',
 						Link{link = firstKillPlayer.player, children = firstKillPlayer.displayName}
 					}},
-					MatchPage._displayCeremony(round.ceremony)
+					Span{children = WidgetUtil.collect(
+						MatchPage._displayCeremony(Logic.emptyOr(round.ceremony, round.flawless and 'Flawless' or nil)),
+						ceremonyPlayer and {
+							' ',
+							Link{link = ceremonyPlayer.player, children = ceremonyPlayer.displayName}
+						} or nil
+					)}
 				}
 
 			}
