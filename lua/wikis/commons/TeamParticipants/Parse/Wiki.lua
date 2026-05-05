@@ -236,6 +236,7 @@ function TeamParticipantsWikiParser.parsePlayer(playerInput)
 		status = playerInput.status,
 		played = Logic.nilOr(playedInput, true),
 		results = Logic.nilOr(resultsInput, playedInput, true),
+		number = tonumber(playerInput.number),
 	}
 	return player
 end
