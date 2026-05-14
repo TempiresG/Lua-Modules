@@ -1086,7 +1086,7 @@ return {
 			jpn = 'japanese',
 			jea = 'jeannedarc',
 			arc = 'jeannedarc',
-			jin = 'jindynasty', 
+			jin = 'jindynasty',
 			knt = 'knightstemplar',
 			mac = 'macedoniandynasty',
 			mal = 'malians',
